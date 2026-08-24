@@ -2,28 +2,246 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Link Shortener</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        h1, h2, h3 {
+            color: #111;
+            margin-top: 0;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        input[type="text"], input[type="url"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input[type="text"]:focus, input[type="url"]:focus, input[type="password"]:focus {
+            border-color: #0066cc;
+            outline: none;
+        }
+        button {
+            background: #0066cc;
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #bd2130;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #5a6268;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        td code {
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+        }
+        .status-msg {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .action-links {
+            display: flex;
+            gap: 10px;
+        }
+        .action-links a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .action-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <div id="redirecting" style="display: none;">
+    <div id="redirecting" style="display: none;" class="card">
         <p>Redirecting to <span id="target-url">...</span></p>
     </div>
 
-    <div id="error" style="display: none; color: red;">
-        <p>Error: Short link <strong id="missing-key"></strong> not found.</p>
-        <p><a href="./">Back to links</a></p>
+    <div id="error" style="display: none;" class="card">
+        <p style="color: red; font-weight: 600;">Error: Short link <strong id="missing-key"></strong> not found.</p>
+        <p><a href="./">Go back to link list</a></p>
     </div>
 
-    <div id="list-view" style="display: none;">
-        <h1>Short Links</h1>
-        <ul id="links-list">
-            <li>Loading...</li>
-        </ul>
-        <p>Use the local CLI command in your repository to add or delete links:</p>
-        <pre>node links/manage.js add [key] [url]</pre>
+    <div id="manager" style="display: none;">
+        <h1>Link Shortener Manager</h1>
+        
+        <div id="global-status" class="status-msg"></div>
+
+        <!-- Links List Card -->
+        <div class="card">
+            <h2>Current Short Links</h2>
+            <table id="links-table">
+                <thead>
+                    <tr>
+                        <th>Short Path</th>
+                        <th>Destination URL</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="links-tbody">
+                    <tr>
+                        <td colspan="3">Loading links...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-row">
+            <!-- Add Form Card -->
+            <div class="card" style="flex: 1.2;">
+                <h2>Add / Update Link</h2>
+                <form id="add-form">
+                    <div class="form-group">
+                        <label for="new-key">Short Key</label>
+                        <input type="text" id="new-key" required placeholder="e.g. blog" pattern="^[a-zA-Z0-9\-_]+$">
+                        <small style="color: #666; font-size: 11px;">Alphanumeric characters, dashes, and underscores only.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-url">Destination URL</label>
+                        <input type="url" id="new-url" required placeholder="https://example.com/some/long/path">
+                    </div>
+                    <button type="submit" id="submit-btn">Save Link</button>
+                </form>
+            </div>
+
+            <!-- GitHub Configuration Card -->
+            <div class="card" style="flex: 1;">
+                <h2>GitHub API Settings</h2>
+                <p style="font-size: 12px; color: #555; margin-top: 0;">Configure this to save changes automatically directly to your repository.</p>
+                <form id="config-form">
+                    <div class="form-group">
+                        <label for="github-owner">GitHub Username / Owner</label>
+                        <input type="text" id="github-owner" required placeholder="vilius-sukackas">
+                    </div>
+                    <div class="form-group">
+                        <label for="github-repo">Repository Name</label>
+                        <input type="text" id="github-repo" required placeholder="vilius.sukackas.lt">
+                    </div>
+                    <div class="form-group">
+                        <label for="github-branch">Branch</label>
+                        <input type="text" id="github-branch" required value="main">
+                    </div>
+                    <div class="form-group">
+                        <label for="github-token">Personal Access Token (classic with repo scope, or fine-grained)</label>
+                        <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxx">
+                    </div>
+                    <button type="submit" class="secondary">Save Credentials</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Manual JSON Code Fallback -->
+        <div id="output-section" class="card" style="display: none;">
+            <h3>Updated redirects.json Content (Manual Fallback)</h3>
+            <p style="font-size: 13px; color: #555;">GitHub Token is not set or save failed. Copy the content below and replace the contents of <code>links/redirects.json</code> in your repository manually:</p>
+            <pre id="json-output"></pre>
+            <button id="copy-btn">Copy to Clipboard</button>
+        </div>
     </div>
 
     <script>
+        let currentRedirects = {};
+
+        // Helper to parse key from path, hash, or search query
         function getRedirectKey() {
             if (window.location.hash) {
                 return window.location.hash.substring(1);
@@ -39,51 +257,237 @@
             return null;
         }
 
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('global-status');
+            statusEl.textContent = message;
+            statusEl.className = 'status-msg status-' + type;
+            statusEl.style.display = 'block';
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 6000);
+        }
+
+        // Load configuration from local storage
+        function getGitHubConfig() {
+            return {
+                owner: localStorage.getItem('git_owner') || 'vilius-sukackas',
+                repo: localStorage.getItem('git_repo') || 'vilius.sukackas.lt',
+                branch: localStorage.getItem('git_branch') || 'main',
+                token: localStorage.getItem('git_token') || ''
+            };
+        }
+
         async function init() {
             const key = getRedirectKey();
+            
             try {
                 const response = await fetch('redirects.json');
-                if (!response.ok) throw new Error('Could not load redirects.json');
-                const redirects = await response.json();
+                if (!response.ok) {
+                    throw new Error('Could not load redirects.json');
+                }
+                currentRedirects = await response.json();
 
                 if (key) {
-                    if (redirects.hasOwnProperty(key)) {
+                    if (currentRedirects.hasOwnProperty(key)) {
+                        const target = currentRedirects[key];
                         document.getElementById('redirecting').style.display = 'block';
-                        document.getElementById('target-url').textContent = redirects[key];
-                        window.location.replace(redirects[key]);
+                        document.getElementById('target-url').textContent = target;
+                        window.location.replace(target);
                     } else {
                         document.getElementById('error').style.display = 'block';
                         document.getElementById('missing-key').textContent = key;
                     }
                 } else {
-                    showList(redirects);
+                    setupManager();
                 }
             } catch (err) {
                 console.error(err);
-                alert('Error: ' + err.message);
+                alert('Error loading links database: ' + err.message);
             }
         }
 
-        function showList(redirects) {
-            document.getElementById('list-view').style.display = 'block';
-            const listEl = document.getElementById('links-list');
-            listEl.innerHTML = '';
+        function setupManager() {
+            document.getElementById('manager').style.display = 'block';
+            
+            // Populate Config Form
+            const config = getGitHubConfig();
+            document.getElementById('github-owner').value = config.owner;
+            document.getElementById('github-repo').value = config.repo;
+            document.getElementById('github-branch').value = config.branch;
+            document.getElementById('github-token').value = config.token;
 
-            const keys = Object.keys(redirects);
+            renderLinksTable();
+
+            // Config Form Submit Handler
+            document.getElementById('config-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                localStorage.setItem('git_owner', document.getElementById('github-owner').value.trim());
+                localStorage.setItem('git_repo', document.getElementById('github-repo').value.trim());
+                localStorage.setItem('git_branch', document.getElementById('github-branch').value.trim());
+                localStorage.setItem('git_token', document.getElementById('github-token').value.trim());
+                showStatus('GitHub credentials saved locally!', 'success');
+            });
+
+            // Add Form Submit Handler
+            document.getElementById('add-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const key = document.getElementById('new-key').value.trim();
+                const url = document.getElementById('new-url').value.trim();
+
+                if (!key || !url) return;
+
+                currentRedirects[key] = url;
+                await saveRedirects(`Add/update link ${key}`);
+                
+                // Clear add form inputs
+                document.getElementById('new-key').value = '';
+                document.getElementById('new-url').value = '';
+            });
+
+            // Copy to clipboard fallback button
+            document.getElementById('copy-btn').onclick = () => {
+                const text = document.getElementById('json-output').textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    showStatus('JSON copied to clipboard!', 'success');
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                });
+            };
+        }
+
+        function renderLinksTable() {
+            const tbody = document.getElementById('links-tbody');
+            tbody.innerHTML = '';
+
+            const keys = Object.keys(currentRedirects).sort();
             if (keys.length === 0) {
-                listEl.innerHTML = '<li>No links configured yet.</li>';
+                tbody.innerHTML = '<tr><td colspan="3">No short links configured yet.</td></tr>';
                 return;
             }
 
-            const basePath = window.location.pathname.substring(0, window.location.pathname.indexOf('/links/'));
+            const pathname = window.location.pathname;
+            const linksIndex = pathname.indexOf('/links/');
+            const basePath = linksIndex !== -1 ? pathname.substring(0, linksIndex) : '';
             const shortBaseUrl = window.location.origin + basePath + '/f/';
 
             keys.forEach(k => {
-                const li = document.createElement('li');
-                const shortUrl = shortBaseUrl + k;
-                li.innerHTML = `<strong>${k}</strong> &rarr; <a href="${redirects[k]}" target="_blank">${redirects[k]}</a> (<a href="${shortUrl}">try redirect</a>)`;
-                listEl.appendChild(li);
+                const tr = document.createElement('tr');
+                const fullShortUrl = shortBaseUrl + k;
+
+                tr.innerHTML = `
+                    <td><code>/f/${k}</code></td>
+                    <td><a href="${currentRedirects[k]}" target="_blank" style="word-break: break-all;">${currentRedirects[k]}</a></td>
+                    <td class="action-links">
+                        <a href="${fullShortUrl}" target="_blank">Test</a>
+                        <a href="#" onclick="copyTextToClipboard('${fullShortUrl}'); return false;">Copy Link</a>
+                        <a href="#" onclick="deleteLink('${k}'); return false;" style="color: #dc3545;">Delete</a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
             });
+        }
+
+        function copyTextToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('Short link copied to clipboard!', 'success');
+            }).catch(err => alert('Failed to copy.'));
+        }
+
+        async function deleteLink(key) {
+            if (!confirm(`Are you sure you want to delete /f/${key}?`)) return;
+            delete currentRedirects[key];
+            await saveRedirects(`Delete link ${key}`);
+        }
+
+        async function saveRedirects(commitMessage) {
+            const config = getGitHubConfig();
+            
+            // Sort redirects alphabetically
+            const sortedRedirects = {};
+            Object.keys(currentRedirects).sort().forEach(key => {
+                sortedRedirects[key] = currentRedirects[key];
+            });
+            currentRedirects = sortedRedirects;
+
+            // Re-render immediately locally
+            renderLinksTable();
+
+            const jsonStr = JSON.stringify(sortedRedirects, null, 2);
+
+            // If token is missing, show manual fallback instructions
+            if (!config.token) {
+                document.getElementById('json-output').textContent = jsonStr;
+                document.getElementById('output-section').style.display = 'block';
+                showStatus('GitHub token not configured. Please copy the JSON below to update manually, or configure GitHub Settings.', 'info');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            showStatus('Connecting to GitHub API to save changes...', 'info');
+
+            const filePath = 'links/redirects.json';
+            const apiBase = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}`;
+
+            try {
+                // 1. Fetch file SHA from repository
+                const getUrl = `${apiBase}?ref=${config.branch}`;
+                const getResponse = await fetch(getUrl, {
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                let sha = null;
+                if (getResponse.ok) {
+                    const fileData = await getResponse.json();
+                    sha = fileData.sha;
+                } else if (getResponse.status !== 404) {
+                    throw new Error(`Failed to retrieve file metadata from GitHub. Status: ${getResponse.status}`);
+                }
+
+                // 2. Commit updated file to repository
+                // Safe UTF-8 Base64 Encoding
+                const base64Content = btoa(unescape(encodeURIComponent(jsonStr)));
+
+                const body = {
+                    message: commitMessage,
+                    content: base64Content,
+                    branch: config.branch
+                };
+                if (sha) {
+                    body.sha = sha;
+                }
+
+                const putResponse = await fetch(apiBase, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!putResponse.ok) {
+                    const errData = await putResponse.json();
+                    throw new Error(errData.message || 'Write failed');
+                }
+
+                showStatus('Changes saved and committed to GitHub successfully! It will take a minute to deploy.', 'success');
+                document.getElementById('output-section').style.display = 'none';
+
+            } catch (err) {
+                console.error(err);
+                showStatus('Error saving to GitHub: ' + err.message, 'error');
+                
+                // Show fallback output
+                document.getElementById('json-output').textContent = jsonStr;
+                document.getElementById('output-section').style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+            }
         }
 
         init();
