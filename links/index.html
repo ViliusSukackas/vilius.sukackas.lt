@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Shortener</title>
+</head>
+<body>
+    <div id="redirecting" style="display: none;">
+        <p>Redirecting to <span id="target-url">...</span></p>
+    </div>
+
+    <div id="error" style="display: none; color: red;">
+        <p>Error: Short link <strong id="missing-key"></strong> not found.</p>
+        <p><a href="./">Go back to link list</a></p>
+    </div>
+
+    <div id="manager" style="display: none;">
+        <h1>Link Shortener</h1>
+        
+        <h2>Existing Links</h2>
+        <ul id="links-list">
+            <li>Loading...</li>
+        </ul>
+
+        <h2>Add or Update a Link</h2>
+        <form id="add-form">
+            <p>
+                <label for="new-key">Short Key:</label><br>
+                <input type="text" id="new-key" required placeholder="e.g. blog">
+            </p>
+            <p>
+                <label for="new-url">Destination URL:</label><br>
+                <input type="url" id="new-url" required placeholder="https://example.com/some/long/path">
+            </p>
+            <button type="submit">Generate Updated JSON</button>
+        </form>
+
+        <div id="output-section" style="display: none;">
+            <h3>Updated redirects.json Content</h3>
+            <p>Copy the content below and replace the contents of <code>links/redirects.json</code> in your repository:</p>
+            <pre id="json-output" style="background: #f0f0f0; padding: 10px; border: 1px solid #ccc; overflow-x: auto;"></pre>
+            <button id="copy-btn">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        // Helper to parse key from hash, ?key, or ?id=key
+        function getRedirectKey() {
+            // 1. Try hash (e.g. #google)
+            if (window.location.hash) {
+                return window.location.hash.substring(1);
+            }
+            
+            // 2. Try search params
+            if (window.location.search) {
+                const search = window.location.search;
+                // If it's a standard query like ?id=google
+                if (search.includes('=')) {
+                    const params = new URLSearchParams(search);
+                    if (params.has('id')) {
+                        return params.get('id');
+                    }
+                }
+                // If it's just ?google
+                return search.substring(1);
+            }
+            
+            return null;
+        }
+
+        async function init() {
+            const key = getRedirectKey();
+            
+            try {
+                const response = await fetch('redirects.json');
+                if (!response.ok) {
+                    throw new Error('Could not load redirects.json');
+                }
+                const redirects = await response.json();
+
+                if (key) {
+                    if (redirects.hasOwnProperty(key)) {
+                        const target = redirects[key];
+                        document.getElementById('redirecting').style.display = 'block';
+                        document.getElementById('target-url').textContent = target;
+                        window.location.replace(target);
+                    } else {
+                        document.getElementById('error').style.display = 'block';
+                        document.getElementById('missing-key').textContent = key;
+                    }
+                } else {
+                    showManager(redirects);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error loading links database: ' + err.message);
+            }
+        }
+
+        function showManager(redirects) {
+            document.getElementById('manager').style.display = 'block';
+            const listEl = document.getElementById('links-list');
+            listEl.innerHTML = '';
+
+            const keys = Object.keys(redirects);
+            if (keys.length === 0) {
+                listEl.innerHTML = '<li>No links created yet.</li>';
+            } else {
+                keys.forEach(k => {
+                    const li = document.createElement('li');
+                    
+                    const shortUrlSearch = window.location.origin + window.location.pathname + '?' + k;
+                    
+                    li.innerHTML = `
+                        <strong>${k}</strong> &rarr; 
+                        <a href="${redirects[k]}" target="_blank">${redirects[k]}</a> 
+                        (<a href="${shortUrlSearch}">try redirect</a>)
+                    `;
+                    listEl.appendChild(li);
+                });
+            }
+
+            const form = document.getElementById('add-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newKey = document.getElementById('new-key').value.trim();
+                const newUrl = document.getElementById('new-url').value.trim();
+
+                if (!newKey || !newUrl) return;
+
+                // Add or update the link in the local redirects object
+                redirects[newKey] = newUrl;
+
+                // Output the updated JSON sorted alphabetically by key for cleanliness
+                const sortedRedirects = {};
+                Object.keys(redirects).sort().forEach(key => {
+                    sortedRedirects[key] = redirects[key];
+                });
+
+                const jsonStr = JSON.stringify(sortedRedirects, null, 2);
+                document.getElementById('json-output').textContent = jsonStr;
+                document.getElementById('output-section').style.display = 'block';
+                
+                // Re-render the list with the newly added/updated key
+                showManager(sortedRedirects);
+            });
+
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.onclick = () => {
+                const text = document.getElementById('json-output').textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                });
+            };
+        }
+
+        init();
+    </script>
+</body>
+</html>
