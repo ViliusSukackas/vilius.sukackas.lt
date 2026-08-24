@@ -1,4 +1,5 @@
 {
   "github": "https://github.com/vilius-sukackas",
-  "test": "https://example.com"
+  "test": "https://example.com",
+  "testcli": "https://example.com/cli"
 }
