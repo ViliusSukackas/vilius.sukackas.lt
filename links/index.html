@@ -110,15 +110,12 @@
                 keys.forEach(k => {
                     const li = document.createElement('li');
                     
-                    const pathname = window.location.pathname;
-                    const linksIndex = pathname.indexOf('/links/');
-                    const basePath = linksIndex !== -1 ? pathname.substring(0, linksIndex) : '';
-                    const shortUrl = window.location.origin + basePath + '/f/' + k;
+                    const shortUrlSearch = window.location.origin + window.location.pathname + '?' + k;
                     
                     li.innerHTML = `
                         <strong>${k}</strong> &rarr; 
                         <a href="${redirects[k]}" target="_blank">${redirects[k]}</a> 
-                        (<a href="${shortUrl}">try redirect: ${shortUrl}</a>)
+                        (<a href="${shortUrlSearch}">try redirect</a>)
                     `;
                     listEl.appendChild(li);
                 });
