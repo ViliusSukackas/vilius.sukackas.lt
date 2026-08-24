@@ -11,79 +11,19 @@
 
     <div id="error" style="display: none; color: red;">
         <p>Error: Short link <strong id="missing-key"></strong> not found.</p>
-        <p><a href="./">Back to manager</a></p>
+        <p><a href="./">Back to links</a></p>
     </div>
 
-    <div id="manager" style="display: none;">
-        <h1>Link Shortener</h1>
-        
-        <div id="status-message" style="margin-bottom: 20px; font-weight: bold;"></div>
-
-        <div>
-            <h2>Add / Update Link</h2>
-            <form id="add-form">
-                <p>
-                    <label for="new-key">Short Key (e.g. "blog"):</label><br>
-                    <input type="text" id="new-key" required pattern="^[a-zA-Z0-9\-_]+$">
-                </p>
-                <p>
-                    <label for="new-url">Redirect URL:</label><br>
-                    <input type="url" id="new-url" required placeholder="https://example.com">
-                </p>
-                <button type="submit" id="save-btn">Create & Save Link</button>
-            </form>
-        </div>
-
-        <div id="result-section" style="display: none; margin-top: 20px; background: #eef; padding: 10px; border: 1px solid #ccd;">
-            <h3>Your Short Link is Ready!</h3>
-            <p>
-                URL: <a id="short-link-href" href="#" target="_blank"><code id="short-link-text"></code></a>
-                <button id="copy-link-btn">Copy to Clipboard</button>
-            </p>
-            <p><small>*Note: If saving automatically, it may take 30–60 seconds for GitHub Pages to deploy the change.</small></p>
-        </div>
-
-        <div>
-            <h2>GitHub Settings (for automatic saving)</h2>
-            <form id="config-form">
-                <p>
-                    <label for="github-owner">GitHub Username:</label><br>
-                    <input type="text" id="github-owner" required value="vilius-sukackas">
-                </p>
-                <p>
-                    <label for="github-repo">Repository Name:</label><br>
-                    <input type="text" id="github-repo" required value="vilius.sukackas.lt">
-                </p>
-                <p>
-                    <label for="github-branch">Branch:</label><br>
-                    <input type="text" id="github-branch" required value="main">
-                </p>
-                <p>
-                    <label for="github-token">Personal Access Token (classic with repo permission):</label><br>
-                    <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxx">
-                </p>
-                <button type="submit">Save GitHub Settings</button>
-            </form>
-        </div>
-
-        <div id="fallback-section" style="display: none; margin-top: 20px;">
-            <h3>Manual Fallback</h3>
-            <p>GitHub token is not configured. Copy this JSON block and paste it into your <code>links/redirects.json</code> file in your repository:</p>
-            <pre id="json-output" style="background: #f0f0f0; padding: 10px; border: 1px solid #ccc;"></pre>
-            <button id="copy-json-btn">Copy JSON to Clipboard</button>
-        </div>
-
-        <div>
-            <h2>Current Links</h2>
-            <ul id="links-list">
-                <li>Loading links...</li>
-            </ul>
-        </div>
+    <div id="list-view" style="display: none;">
+        <h1>Short Links</h1>
+        <ul id="links-list">
+            <li>Loading...</li>
+        </ul>
+        <p>Use the local CLI command in your repository to add or delete links:</p>
+        <pre>node links/manage.js add [key] [url]</pre>
     </div>
 
     <script>
-        let redirects = {};
-
         function getRedirectKey() {
             if (window.location.hash) {
                 return window.location.hash.substring(1);
@@ -99,21 +39,12 @@
             return null;
         }
 
-        function getGitConfig() {
-            return {
-                owner: localStorage.getItem('git_owner') || 'vilius-sukackas',
-                repo: localStorage.getItem('git_repo') || 'vilius.sukackas.lt',
-                branch: localStorage.getItem('git_branch') || 'main',
-                token: localStorage.getItem('git_token') || ''
-            };
-        }
-
         async function init() {
             const key = getRedirectKey();
             try {
                 const response = await fetch('redirects.json');
                 if (!response.ok) throw new Error('Could not load redirects.json');
-                redirects = await response.json();
+                const redirects = await response.json();
 
                 if (key) {
                     if (redirects.hasOwnProperty(key)) {
@@ -125,75 +56,20 @@
                         document.getElementById('missing-key').textContent = key;
                     }
                 } else {
-                    setupManager();
+                    showList(redirects);
                 }
             } catch (err) {
                 console.error(err);
-                alert('Initialization error: ' + err.message);
+                alert('Error: ' + err.message);
             }
         }
 
-        function setupManager() {
-            document.getElementById('manager').style.display = 'block';
-            
-            const config = getGitConfig();
-            document.getElementById('github-owner').value = config.owner;
-            document.getElementById('github-repo').value = config.repo;
-            document.getElementById('github-branch').value = config.branch;
-            document.getElementById('github-token').value = config.token;
-
-            renderLinks();
-
-            // Config save
-            document.getElementById('config-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                localStorage.setItem('git_owner', document.getElementById('github-owner').value.trim());
-                localStorage.setItem('git_repo', document.getElementById('github-repo').value.trim());
-                localStorage.setItem('git_branch', document.getElementById('github-branch').value.trim());
-                localStorage.setItem('git_token', document.getElementById('github-token').value.trim());
-                setStatus('GitHub settings saved locally!', 'green');
-            });
-
-            // Add/Update Link save
-            document.getElementById('add-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const key = document.getElementById('new-key').value.trim();
-                const url = document.getElementById('new-url').value.trim();
-
-                if (!key || !url) return;
-
-                redirects[key] = url;
-                await saveRedirects(key, url);
-            });
-
-            // Copy Link
-            document.getElementById('copy-link-btn').onclick = () => {
-                const text = document.getElementById('short-link-text').textContent;
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('Link copied to clipboard!');
-                });
-            };
-
-            // Copy JSON Fallback
-            document.getElementById('copy-json-btn').onclick = () => {
-                const text = document.getElementById('json-output').textContent;
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('JSON copied to clipboard!');
-                });
-            };
-        }
-
-        function setStatus(msg, color = 'black') {
-            const statusEl = document.getElementById('status-message');
-            statusEl.textContent = msg;
-            statusEl.style.color = color;
-        }
-
-        function renderLinks() {
+        function showList(redirects) {
+            document.getElementById('list-view').style.display = 'block';
             const listEl = document.getElementById('links-list');
             listEl.innerHTML = '';
 
-            const keys = Object.keys(redirects).sort();
+            const keys = Object.keys(redirects);
             if (keys.length === 0) {
                 listEl.innerHTML = '<li>No links configured yet.</li>';
                 return;
@@ -205,116 +81,9 @@
             keys.forEach(k => {
                 const li = document.createElement('li');
                 const shortUrl = shortBaseUrl + k;
-                li.innerHTML = `<strong>/f/${k}</strong> &rarr; <a href="${redirects[k]}" target="_blank">${redirects[k]}</a> (<a href="${shortUrl}">test</a>) <button onclick="deleteLink('${k}')">Delete</button>`;
+                li.innerHTML = `<strong>${k}</strong> &rarr; <a href="${redirects[k]}" target="_blank">${redirects[k]}</a> (<a href="${shortUrl}">try redirect</a>)`;
                 listEl.appendChild(li);
             });
-        }
-
-        async function deleteLink(key) {
-            if (!confirm(`Delete redirect for /f/${key}?`)) return;
-            delete redirects[key];
-            await saveRedirects(key, null, true);
-        }
-
-        async function saveRedirects(key, url, isDelete = false) {
-            const config = getGitConfig();
-            
-            // Sort redirects alphabetically
-            const sortedRedirects = {};
-            Object.keys(redirects).sort().forEach(k => {
-                sortedRedirects[k] = redirects[k];
-            });
-            redirects = sortedRedirects;
-
-            renderLinks();
-
-            const jsonStr = JSON.stringify(redirects, null, 2);
-
-            // Compute the short link URL
-            const basePath = window.location.pathname.substring(0, window.location.pathname.indexOf('/links/'));
-            const finalShortUrl = window.location.origin + basePath + '/f/' + key;
-
-            if (!config.token) {
-                document.getElementById('json-output').textContent = jsonStr;
-                document.getElementById('fallback-section').style.display = 'block';
-                document.getElementById('result-section').style.display = 'none';
-                setStatus('GitHub settings not configured. Please copy the JSON below to commit manually.', 'orange');
-                return;
-            }
-
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.disabled = true;
-            setStatus('Saving changes to GitHub...', 'blue');
-
-            const filePath = 'links/redirects.json';
-            const apiBase = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}`;
-
-            try {
-                // 1. Get current file SHA
-                const getRes = await fetch(`${apiBase}?ref=${config.branch}`, {
-                    headers: {
-                        'Authorization': `token ${config.token}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-
-                let sha = null;
-                if (getRes.ok) {
-                    const fileData = await getRes.json();
-                    sha = fileData.sha;
-                } else if (getRes.status !== 404) {
-                    throw new Error(`Failed to load file details (Status: ${getRes.status})`);
-                }
-
-                // 2. Commit updated JSON
-                const commitMessage = isDelete ? `Delete short link /f/${key}` : `Update short link /f/${key}`;
-                const base64Content = btoa(unescape(encodeURIComponent(jsonStr)));
-
-                const body = {
-                    message: commitMessage,
-                    content: base64Content,
-                    branch: config.branch
-                };
-                if (sha) body.sha = sha;
-
-                const putRes = await fetch(apiBase, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${config.token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify(body)
-                });
-
-                if (!putRes.ok) {
-                    const errData = await putRes.json();
-                    throw new Error(errData.message || 'Write failed');
-                }
-
-                setStatus('Saved successfully to your repository!', 'green');
-                document.getElementById('fallback-section').style.display = 'none';
-
-                if (!isDelete) {
-                    // Display working link
-                    document.getElementById('short-link-text').textContent = finalShortUrl;
-                    document.getElementById('short-link-href').href = finalShortUrl;
-                    document.getElementById('result-section').style.display = 'block';
-                    // Clear inputs
-                    document.getElementById('new-key').value = '';
-                    document.getElementById('new-url').value = '';
-                } else {
-                    document.getElementById('result-section').style.display = 'none';
-                }
-
-            } catch (err) {
-                console.error(err);
-                setStatus('Failed to save to GitHub: ' + err.message, 'red');
-                document.getElementById('json-output').textContent = jsonStr;
-                document.getElementById('fallback-section').style.display = 'block';
-            } finally {
-                saveBtn.disabled = false;
-            }
         }
 
         init();
