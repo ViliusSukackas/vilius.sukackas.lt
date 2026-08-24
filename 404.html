@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found</title>
+</head>
+<body>
+    <div id="redirect-status" style="display: none;">
+        <p>Redirecting short link <strong><span id="target-key"></span></strong>...</p>
+    </div>
+
+    <div id="not-found" style="display: none;">
+        <h1>404 - Page Not Found</h1>
+        <p>The page you are looking for does not exist.</p>
+        <p><a href="/">Go to Home</a></p>
+    </div>
+
+    <script>
+        function showNotFound() {
+            document.getElementById('redirect-status').style.display = 'none';
+            document.getElementById('not-found').style.display = 'block';
+        }
+
+        function checkRedirect() {
+            const pathname = window.location.pathname;
+            const fIndex = pathname.indexOf('/f/');
+            
+            if (fIndex !== -1) {
+                const keyMatch = pathname.substring(fIndex).match(/\/f\/([^/]+)/);
+                if (keyMatch) {
+                    const key = keyMatch[1];
+                    const basePath = pathname.substring(0, fIndex);
+                    const jsonUrl = basePath + '/links/redirects.json';
+                    
+                    document.getElementById('redirect-status').style.display = 'block';
+                    document.getElementById('target-key').textContent = key;
+
+                    fetch(jsonUrl)
+                        .then(res => {
+                            if (!res.ok) throw new Error('Not found');
+                            return res.json();
+                        })
+                        .then(redirects => {
+                            if (redirects.hasOwnProperty(key)) {
+                                window.location.replace(redirects[key]);
+                            } else {
+                                showNotFound();
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            showNotFound();
+                        });
+                    return;
+                }
+            }
+            showNotFound();
+        }
+
+        checkRedirect();
+    </script>
+</body>
+</html>
