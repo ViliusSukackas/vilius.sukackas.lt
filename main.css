@@ -1,8 +1,11 @@
+body {
+  padding: 0px;
+  margin: 0px;
+}
 .header {
-  margin: 0;
-  padding: 10px 16px;
-  text-align: center;
-  background: blue;
-  color: white;
-  font-size: 30px;
+  top: 0;
+  text-align: left;
+  border-bottom-style: dashed;
+  background-color: #CFCFCF;
+  padding: 20px;
 }
