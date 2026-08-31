@@ -2,10 +2,20 @@ body {
   padding: 0px;
   margin: 0px;
 }
+
+h2 {
+padding-top: 10px;
+}
+img {
+padding: 10px;
+}
+img.auto {
+ width: auto;
+}
 .header {
   top: 0;
   text-align: left;
-  border-bottom-style: dashed;
   background-color: #CFCFCF;
+  border-color: #CFCFCF;
   padding: 20px;
 }
